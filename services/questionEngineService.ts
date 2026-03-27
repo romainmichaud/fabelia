@@ -150,7 +150,14 @@ export const questionEngineService = {
     if (error || !data?.length) return formData
 
     const extras = Object.fromEntries(
-      data.map(row => [row.question_key, row.answer_value])
+      data.map(row => {
+        let value: unknown = row.answer_value
+        // Parse JSON-encoded array fields back to arrays
+        if (row.question_key === 'personalities' && typeof value === 'string') {
+          try { value = JSON.parse(value) } catch { value = [] }
+        }
+        return [row.question_key, value]
+      })
     )
 
     return { ...formData, ...extras } as ProjectFormData
