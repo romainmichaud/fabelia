@@ -19,6 +19,7 @@ import { SummaryStep }     from './steps/SummaryStep'
 // WIZARD CONFIG
 // ============================================================
 export { WIZARD_STEPS } from './wizard-steps'
+import { WIZARD_STEPS } from './wizard-steps'
 
 const STEP_COMPONENTS = [
   ThemeStep,
