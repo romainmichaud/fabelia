@@ -1,0 +1,263 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* ============================================================
+   CUSTOM PROPERTIES
+   ============================================================ */
+:root {
+  --color-cream:    #FAF5ED;
+  --color-forest:   #2D5A3D;
+  --color-amber:    #E8A93C;
+  --color-terra:    #E07A5F;
+  --color-navy:     #1A2E4A;
+  --color-gold:     #C9A84C;
+
+  --radius-book:    12px;
+  --shadow-book:    4px 4px 20px rgba(26, 46, 74, 0.20), 8px 8px 40px rgba(26, 46, 74, 0.10);
+
+  /* Fluid typography scale */
+  --step--1: clamp(0.8rem,   0.75rem + 0.25vw, 0.9rem);
+  --step-0:  clamp(1rem,     0.95rem + 0.25vw, 1.1rem);
+  --step-1:  clamp(1.2rem,   1.1rem  + 0.5vw,  1.4rem);
+  --step-2:  clamp(1.5rem,   1.3rem  + 1vw,    1.9rem);
+  --step-3:  clamp(1.9rem,   1.6rem  + 1.5vw,  2.5rem);
+  --step-4:  clamp(2.3rem,   1.9rem  + 2vw,    3.2rem);
+  --step-5:  clamp(2.8rem,   2.2rem  + 3vw,    4.2rem);
+}
+
+/* ============================================================
+   BASE RESET & GLOBAL STYLES
+   ============================================================ */
+@layer base {
+  *, *::before, *::after {
+    box-sizing: border-box;
+  }
+
+  html {
+    scroll-behavior: smooth;
+    -webkit-font-smoothing:  antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+
+  body {
+    @apply font-sans bg-cream-50 text-navy-800;
+    font-size: var(--step-0);
+  }
+
+  h1, h2, h3, h4, h5, h6 {
+    @apply font-serif;
+    text-wrap: balance;
+  }
+
+  p {
+    text-wrap: pretty;
+  }
+
+  /* Selection color */
+  ::selection {
+    background-color: rgba(232, 169, 60, 0.30);
+    color: #1A2E4A;
+  }
+
+  /* Focus styles */
+  :focus-visible {
+    outline: 2px solid #E8A93C;
+    outline-offset: 3px;
+    border-radius: 4px;
+  }
+
+  /* Scrollbar styling */
+  ::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+  }
+  ::-webkit-scrollbar-track {
+    background: #F5EBD8;
+  }
+  ::-webkit-scrollbar-thumb {
+    background: #EEDDC0;
+    border-radius: 4px;
+  }
+  ::-webkit-scrollbar-thumb:hover {
+    background: #E5CB9F;
+  }
+}
+
+/* ============================================================
+   COMPONENT UTILITIES
+   ============================================================ */
+@layer components {
+
+  /* Text gradient */
+  .text-gradient-amber {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #E8A93C 0%, #C9843A 100%);
+  }
+
+  .text-gradient-forest {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #4A7C5F 0%, #2D5A3D 100%);
+  }
+
+  .text-gradient-warm {
+    @apply bg-clip-text text-transparent;
+    background-image: linear-gradient(135deg, #E8A93C 0%, #E07A5F 60%, #C45C44 100%);
+  }
+
+  /* Glass morphism */
+  .glass {
+    background: rgba(253, 251, 247, 0.80);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.60);
+  }
+
+  .glass-dark {
+    background: rgba(26, 46, 74, 0.85);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+    border: 1px solid rgba(255, 255, 255, 0.10);
+  }
+
+  /* Book card shadow */
+  .book-shadow {
+    box-shadow: var(--shadow-book);
+  }
+
+  /* Shimmer loading */
+  .shimmer {
+    background: linear-gradient(
+      90deg,
+      #F5EBD8 0%,
+      #EEDDC0 50%,
+      #F5EBD8 100%
+    );
+    background-size: 1000px 100%;
+    animation: shimmer 2s infinite linear;
+  }
+
+  /* Noise texture overlay */
+  .texture-noise::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background-image: var(--tw-gradient-stops, var(--texture-paper));
+    opacity: 0.04;
+    pointer-events: none;
+    border-radius: inherit;
+  }
+
+  /* Section container */
+  .section-container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+
+  /* Card hover lift */
+  .card-lift {
+    @apply transition-all duration-300 ease-out;
+  }
+  .card-lift:hover {
+    @apply -translate-y-1 shadow-soft-lg;
+  }
+
+  /* Prose override for book content */
+  .book-prose {
+    @apply font-serif text-navy-800 leading-relaxed;
+  }
+
+  .book-prose p {
+    @apply mb-5 text-lg;
+  }
+
+  .book-prose p:first-of-type::first-letter {
+    @apply font-serif text-5xl font-bold text-forest-500 float-left mr-2 leading-none mt-1;
+  }
+
+  /* Checkmark list */
+  .check-list li {
+    @apply relative pl-7;
+  }
+  .check-list li::before {
+    content: '✓';
+    @apply absolute left-0 text-forest-500 font-bold;
+  }
+
+  /* Step indicator */
+  .step-dot {
+    @apply w-2 h-2 rounded-full bg-cream-300 transition-all duration-300;
+  }
+  .step-dot.active {
+    @apply w-6 bg-amber-400;
+  }
+  .step-dot.completed {
+    @apply bg-forest-400;
+  }
+}
+
+/* ============================================================
+   PAGE TRANSITIONS (App Router)
+   ============================================================ */
+@layer utilities {
+  .page-enter {
+    animation: fadeUp 0.5s ease-out forwards;
+  }
+
+  .animate-delay-100 { animation-delay: 0.1s; }
+  .animate-delay-200 { animation-delay: 0.2s; }
+  .animate-delay-300 { animation-delay: 0.3s; }
+  .animate-delay-400 { animation-delay: 0.4s; }
+  .animate-delay-500 { animation-delay: 0.5s; }
+  .animate-delay-700 { animation-delay: 0.7s; }
+
+  .opacity-0-init {
+    opacity: 0;
+  }
+}
+
+/* ============================================================
+   BOOK READER STYLES
+   ============================================================ */
+.book-reader {
+  perspective: 2000px;
+}
+
+.book-page {
+  transform-style: preserve-3d;
+  backface-visibility: hidden;
+}
+
+.book-page-flip-enter {
+  animation: pageFlip 0.6s cubic-bezier(0.45, 0, 0.55, 1) forwards;
+}
+
+/* ============================================================
+   CUSTOM FORM STYLES
+   ============================================================ */
+.form-input {
+  @apply w-full px-4 py-3 rounded-2xl border-2 border-cream-300 bg-white
+    font-sans text-navy-800 placeholder-cream-400
+    transition-all duration-200
+    focus:outline-none focus:border-amber-400 focus:ring-4 focus:ring-amber-400/10;
+}
+
+.form-input:hover:not(:focus) {
+  @apply border-cream-400;
+}
+
+/* ============================================================
+   STRIPE / PAYMENT ELEMENT OVERRIDE
+   ============================================================ */
+.StripeElement {
+  @apply form-input;
+}
+
+/* ============================================================
+   PRINT STYLES
+   ============================================================ */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+}
