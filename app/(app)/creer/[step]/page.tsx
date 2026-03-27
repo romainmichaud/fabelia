@@ -1,6 +1,7 @@
 import type { Metadata } from 'next'
 import { notFound }    from 'next/navigation'
-import { FormWizard, WIZARD_STEPS } from '@/components/personalization/FormWizard'
+import { FormWizard } from '@/components/personalization/FormWizard'
+import { WIZARD_STEPS } from '@/components/personalization/wizard-steps'
 
 export const metadata: Metadata = { title: 'Créer votre livre' }
 
