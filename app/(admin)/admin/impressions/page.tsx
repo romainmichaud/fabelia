@@ -50,10 +50,6 @@ export default function AdminImpressionsPage() {
     const params = new URLSearchParams({ page: String(page), perPage: '20' })
     if (status) params.set('status', status)
 
-    // Fetch print jobs via admin client directly — reusing orders endpoint for simplicity
-    const { createAdminClient } = await import('@/lib/supabase/server')
-    // Note: in production this would be a dedicated /api/admin/print endpoint
-
     const res  = await fetch(`/api/admin/orders?${params}`)
     const data = await res.json()
     // For now show a placeholder — the print endpoint mirrors orders structure
