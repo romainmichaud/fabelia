@@ -1,7 +1,8 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useCallback } from 'react'
 import Link from 'next/link'
+import Image from 'next/image'
 import { useParams, useRouter } from 'next/navigation'
 import { Button } from '@/components/ui/Button'
 import { CoverSelector } from '@/components/preview/CoverSelector'
@@ -12,59 +13,40 @@ import {
 import type { BookCoverOption } from '@/types'
 
 // ============================================================
-// MOCK DATA (replaced by API calls in production)
+// TYPES
 // ============================================================
-const MOCK_COVERS: BookCoverOption[] = [
-  {
-    id: 'cover-1', label: 'Mystérieuse',
-    imageUrl: '',
-    palette: { primary: '#1A2E4A', secondary: '#FFFFFF', accent: '#E8C547' },
-  },
-  {
-    id: 'cover-2', label: 'Lumineuse',
-    imageUrl: '',
-    palette: { primary: '#2D5A3D', secondary: '#FEFCF8', accent: '#E8A93C' },
-  },
-  {
-    id: 'cover-3', label: 'Chaleureuse',
-    imageUrl: '',
-    palette: { primary: '#C45C44', secondary: '#FEFCF8', accent: '#F5D58A' },
-  },
-  {
-    id: 'cover-4', label: 'Onirique',
-    imageUrl: '',
-    palette: { primary: '#6B4E8C', secondary: '#FFFFFF', accent: '#F2C96E' },
-  },
+interface PreviewData {
+  isReady:          boolean
+  generationStatus: string
+  childName:        string
+  title:            string
+  chapterTitle:     string
+  chapterExcerpt:   string
+  illustrationUrl:  string
+  score:            number
+  coverImages:      { id: string; label: string; imageUrl: string }[]
+}
+
+// Default palettes for covers when images are generated
+const COVER_PALETTES = [
+  { primary: '#1A2E4A', secondary: '#FFFFFF', accent: '#E8C547' },
+  { primary: '#2D5A3D', secondary: '#FEFCF8', accent: '#E8A93C' },
+  { primary: '#C45C44', secondary: '#FEFCF8', accent: '#F5D58A' },
+  { primary: '#6B4E8C', secondary: '#FFFFFF', accent: '#F2C96E' },
 ]
 
-const MOCK_CHAPTER = `
-Ce matin-là, Emma se réveilla avec une étrange sensation dans le ventre. Quelque chose
-l'appelait depuis la forêt derrière la maison — une lumière dorée qu'elle n'avait jamais
-vue auparavant dansait entre les arbres.
-
-Elle noua ses chaussures à toute vitesse, attrapa son sac à dos rouge et sortit en courant
-dans le jardin encore humide de rosée. Les oiseaux semblaient lui parler dans une langue
-qu'elle comprenait soudainement.
-
-— Tu n'as pas peur, toi, dit une petite voix.
-
-Emma se retourna. Sur une branche basse du vieux chêne, une créature qu'elle ne connaissait
-pas la regardait de ses grands yeux brillants. Elle n'avait pas peur — non, elle était
-<mark>courageuse</mark>, tout le monde le disait.
-
-— Je m'appelle Emma, répondit-elle en souriant. Et j'ai l'impression que tu m'attendais.
-`
-
 // ============================================================
-// COMPONENTS
+// GENERATING STATE
 // ============================================================
-function GeneratingState({ step }: { step: string }) {
+function GeneratingState({ status }: { status: string }) {
   const steps = [
-    { id: 'text',   label: 'Écriture du premier chapitre', icon: <AlignLeftIcon className="h-4 w-4" /> },
-    { id: 'covers', label: 'Création des couvertures',      icon: <ImageIcon     className="h-4 w-4" /> },
-    { id: 'illus',  label: 'Illustration de la scène clé',  icon: <SparklesIcon  className="h-4 w-4" /> },
+    { id: 'generating_text',   label: 'Écriture du premier chapitre', icon: <AlignLeftIcon className="h-4 w-4" /> },
+    { id: 'generating_images', label: 'Création des couvertures',      icon: <ImageIcon     className="h-4 w-4" /> },
+    { id: 'completed',         label: 'Illustration de la scène clé',  icon: <SparklesIcon  className="h-4 w-4" /> },
   ]
-  const currentIdx = steps.findIndex(s => s.id === step)
+
+  const STEP_ORDER = ['generating_text', 'generating_images', 'completed']
+  const currentIdx = Math.max(0, STEP_ORDER.indexOf(status))
 
   return (
     <div className="min-h-[60vh] flex flex-col items-center justify-center gap-8 py-20">
@@ -117,8 +99,18 @@ function GeneratingState({ step }: { step: string }) {
 // ============================================================
 // CHAPTER READER
 // ============================================================
-function ChapterPreview({ text, childName }: { text: string; childName: string }) {
-  const paragraphs = text.trim().split('\n\n').filter(Boolean)
+function ChapterPreview({
+  text,
+  title,
+  childName,
+}: {
+  text:      string
+  title:     string
+  childName: string
+}) {
+  // text may be HTML from the AI (uses <p>, <strong>, <em>)
+  // Split on double-newlines if plain text, otherwise use as-is
+  const isHtml = /<[a-z][\s\S]*>/i.test(text)
 
   return (
     <div className="bg-white rounded-3xl border border-cream-200 shadow-soft overflow-hidden">
@@ -130,7 +122,7 @@ function ChapterPreview({ text, childName }: { text: string; childName: string }
             Extrait exclusif
           </p>
           <p className="font-serif font-semibold text-navy-800">
-            Chapitre 1 — L'aventure d'{childName}
+            {title || `Chapitre 1 — L'aventure d'${childName}`}
           </p>
         </div>
         <div className="ml-auto flex items-center gap-1.5 text-xs text-navy-400 bg-cream-100 px-3 py-1.5 rounded-full">
@@ -141,20 +133,20 @@ function ChapterPreview({ text, childName }: { text: string; childName: string }
 
       {/* Content */}
       <div className="px-8 py-8 book-prose max-w-none">
-        {paragraphs.map((p, i) => {
-          const highlighted = p.replace(
-            /<mark>(.*?)<\/mark>/g,
-            (_, word) =>
-              `<mark class="bg-amber-200/80 text-amber-700 rounded px-0.5 font-semibold not-italic">${word}</mark>`
-          )
-          return (
+        {isHtml ? (
+          <div dangerouslySetInnerHTML={{ __html: text }} />
+        ) : (
+          text.trim().split('\n\n').filter(Boolean).map((p, i) => (
             <p
               key={i}
-              className={i === 0 ? 'first-letter:text-5xl first-letter:font-bold first-letter:text-forest-500 first-letter:float-left first-letter:mr-2 first-letter:leading-none first-letter:mt-1 first-letter:font-serif' : ''}
-              dangerouslySetInnerHTML={{ __html: highlighted }}
-            />
-          )
-        })}
+              className={i === 0
+                ? 'first-letter:text-5xl first-letter:font-bold first-letter:text-forest-500 first-letter:float-left first-letter:mr-2 first-letter:leading-none first-letter:mt-1 first-letter:font-serif'
+                : ''}
+            >
+              {p}
+            </p>
+          ))
+        )}
 
         {/* Fade out — locked rest */}
         <div className="relative mt-8">
@@ -178,7 +170,13 @@ function ChapterPreview({ text, childName }: { text: string; childName: string }
 // ============================================================
 // ILLUSTRATION PREVIEW
 // ============================================================
-function IllustrationPreview({ childName }: { childName: string }) {
+function IllustrationPreview({
+  childName,
+  illustrationUrl,
+}: {
+  childName:      string
+  illustrationUrl: string
+}) {
   return (
     <div className="bg-white rounded-3xl border border-cream-200 shadow-soft overflow-hidden">
       <div className="border-b border-cream-100 px-6 py-4 flex items-center gap-3">
@@ -188,18 +186,27 @@ function IllustrationPreview({ childName }: { childName: string }) {
             Illustration page 4
           </p>
           <p className="font-serif font-semibold text-navy-800 text-sm">
-            La rencontre mystérieuse
+            La scène clé du chapitre
           </p>
         </div>
       </div>
       <div className="aspect-[4/3] relative bg-gradient-to-br from-forest-100 to-amber-50 flex items-center justify-center">
-        <div className="text-center p-8">
-          <div className="text-6xl mb-4 animate-float">🌟</div>
-          <p className="font-serif text-navy-600 text-sm italic">
-            "{childName} et la créature de la forêt"
-          </p>
-        </div>
-        {/* In production: <Image src={illustration.url} fill ... /> */}
+        {illustrationUrl ? (
+          <Image
+            src={illustrationUrl}
+            alt={`Illustration de l'aventure de ${childName}`}
+            fill
+            className="object-cover"
+            sizes="(max-width: 768px) 100vw, 800px"
+          />
+        ) : (
+          <div className="text-center p-8">
+            <div className="text-6xl mb-4 animate-float">🌟</div>
+            <p className="font-serif text-navy-600 text-sm italic">
+              "{childName} dans son aventure"
+            </p>
+          </div>
+        )}
       </div>
     </div>
   )
@@ -209,41 +216,74 @@ function IllustrationPreview({ childName }: { childName: string }) {
 // PAGE
 // ============================================================
 export default function PreviewPage() {
-  const params   = useParams()
-  const router   = useRouter()
+  const params    = useParams()
+  const router    = useRouter()
   const projectId = params.projectId as string
 
-  const [genStep,          setGenStep]          = useState<string | null>('text')
-  const [isReady,          setIsReady]          = useState(false)
+  const [preview,          setPreview]          = useState<PreviewData | null>(null)
+  const [error,            setError]            = useState<string | null>(null)
   const [selectedCoverId,  setSelectedCoverId]  = useState<string | null>(null)
-  const [childName]                             = useState('Emma')  // from project data
 
-  // Simulate generation (replace with real polling)
-  useEffect(() => {
-    const steps = ['text', 'covers', 'illus', null]
-    let i = 0
-    const timer = setInterval(() => {
-      i++
-      if (i >= steps.length) {
-        clearInterval(timer)
-        setGenStep(null)
-        setIsReady(true)
-      } else {
-        setGenStep(steps[i])
+  // ——— Poll until preview is ready ———
+  const fetchPreview = useCallback(async () => {
+    try {
+      const res  = await fetch(`/api/preview/${projectId}`)
+      const json = await res.json()
+
+      if (!res.ok) {
+        setError(json.error ?? 'Erreur lors du chargement')
+        return
       }
-    }, 1800)
-    return () => clearInterval(timer)
-  }, [])
 
-  if (!isReady) {
+      setPreview(json.data)
+
+      // Keep polling if not ready
+      if (!json.data.isReady) {
+        setTimeout(fetchPreview, 2500)
+      }
+    } catch {
+      setError('Impossible de charger l\'aperçu')
+    }
+  }, [projectId])
+
+  useEffect(() => {
+    fetchPreview()
+  }, [fetchPreview])
+
+  // ——— Error state ———
+  if (error) {
     return (
-      <div className="min-h-screen bg-gradient-hero">
-        <div className="section-container py-8">
-          <GeneratingState step={genStep ?? 'text'} />
+      <div className="min-h-screen bg-gradient-hero flex items-center justify-center">
+        <div className="text-center p-8">
+          <p className="text-terra-500 mb-4">{error}</p>
+          <Button variant="primary" onClick={() => router.push('/creer/theme')}>
+            Recommencer
+          </Button>
         </div>
       </div>
     )
   }
+
+  // ——— Generating state ———
+  if (!preview?.isReady) {
+    return (
+      <div className="min-h-screen bg-gradient-hero">
+        <div className="section-container py-8">
+          <GeneratingState status={preview?.generationStatus ?? 'generating_text'} />
+        </div>
+      </div>
+    )
+  }
+
+  // ——— Build cover options ———
+  const covers: BookCoverOption[] = preview.coverImages.map((img, idx) => ({
+    id:       img.id,
+    label:    img.label,
+    imageUrl: img.imageUrl,
+    palette:  COVER_PALETTES[idx % COVER_PALETTES.length],
+  }))
+
+  const childName = preview.childName
 
   return (
     <div className="min-h-screen bg-gradient-hero pb-32">
@@ -267,24 +307,35 @@ export default function PreviewPage() {
 
           {/* Chapter */}
           <div className="animate-fade-up" style={{ animationDelay: '0.1s' }}>
-            <ChapterPreview text={MOCK_CHAPTER} childName={childName} />
+            <ChapterPreview
+              text={preview.chapterExcerpt}
+              title={preview.chapterTitle}
+              childName={childName}
+            />
           </div>
 
           {/* Illustration */}
           <div className="animate-fade-up" style={{ animationDelay: '0.2s' }}>
-            <IllustrationPreview childName={childName} />
+            <IllustrationPreview
+              childName={childName}
+              illustrationUrl={preview.illustrationUrl}
+            />
           </div>
 
           {/* Cover selector */}
-          <div className="animate-fade-up bg-white rounded-3xl border border-cream-200 shadow-soft p-6 md:p-8"
-            style={{ animationDelay: '0.3s' }}>
-            <CoverSelector
-              covers={MOCK_COVERS}
-              selected={selectedCoverId}
-              onChange={setSelectedCoverId}
-              childName={childName}
-            />
-          </div>
+          {covers.length > 0 && (
+            <div
+              className="animate-fade-up bg-white rounded-3xl border border-cream-200 shadow-soft p-6 md:p-8"
+              style={{ animationDelay: '0.3s' }}
+            >
+              <CoverSelector
+                covers={covers}
+                selected={selectedCoverId}
+                onChange={setSelectedCoverId}
+                childName={childName}
+              />
+            </div>
+          )}
         </div>
       </div>
 
@@ -310,7 +361,7 @@ export default function PreviewPage() {
               >
                 Modifier
               </button>
-              <Link href={`/commande/${projectId}`}>
+              <Link href={selectedCoverId ? `/commande/${projectId}` : '#'}>
                 <Button
                   variant="primary"
                   size="lg"
