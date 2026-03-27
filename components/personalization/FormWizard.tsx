@@ -50,10 +50,11 @@ export function FormWizard({
   const router = useRouter()
   const [isPending, startTransition] = useTransition()
 
-  const [currentStep, setCurrentStep] = useState(initialStep)
-  const [formData,    setFormData]    = useState<ProjectFormData>(initialData)
-  const [direction,   setDirection]   = useState<'forward' | 'backward'>('forward')
-  const [errors,      setErrors]      = useState<Partial<Record<keyof ProjectFormData, string>>>({})
+  const [currentStep,  setCurrentStep]  = useState(initialStep)
+  const [formData,     setFormData]     = useState<ProjectFormData>(initialData)
+  const [direction,    setDirection]    = useState<'forward' | 'backward'>('forward')
+  const [errors,       setErrors]       = useState<Partial<Record<keyof ProjectFormData, string>>>({})
+  const [submitError,  setSubmitError]  = useState<string | null>(null)
 
   const totalSteps   = WIZARD_STEPS.length
   const isFirstStep  = currentStep === 0
@@ -110,19 +111,24 @@ export function FormWizard({
     setDirection('forward')
 
     if (isLastStep) {
-      // Trigger preview generation and redirect
+      setSubmitError(null)
       startTransition(async () => {
         try {
-          const res = await fetch('/api/preview/generate', {
+          const res  = await fetch('/api/preview/generate', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },
             body:    JSON.stringify({ projectId, formData }),
           })
-          const { data } = await res.json()
-          router.push(`/preview/${data.projectId}`)
-        } catch {
-          // Handle error gracefully
-          router.push(`/preview/demo`)
+          const json = await res.json()
+
+          if (!res.ok) {
+            setSubmitError(json.error ?? `Erreur ${res.status} — veuillez réessayer`)
+            return
+          }
+
+          router.push(`/preview/${json.data.projectId}`)
+        } catch (err) {
+          setSubmitError((err as Error).message ?? 'Erreur réseau — veuillez réessayer')
         }
       })
       return
@@ -199,6 +205,14 @@ export function FormWizard({
 
         {/* ——— BOTTOM NAV ——— */}
         <div className="sticky bottom-0 bg-cream-50/95 backdrop-blur-md border-t border-cream-200 py-4">
+          {submitError && (
+            <div className="max-w-3xl mx-auto px-4 mb-3">
+              <div className="bg-red-50 border border-red-200 rounded-2xl px-4 py-3 text-sm text-red-700 flex items-start gap-2">
+                <span className="shrink-0">⚠️</span>
+                <span>{submitError}</span>
+              </div>
+            </div>
+          )}
           <div className="max-w-3xl mx-auto px-4 flex items-center justify-between gap-4">
             <Button
               variant="ghost"
