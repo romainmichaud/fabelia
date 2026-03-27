@@ -122,7 +122,8 @@ export function FormWizard({
           const json = await res.json()
 
           if (!res.ok) {
-            setSubmitError(json.error ?? `Erreur ${res.status} — veuillez réessayer`)
+            const detail = json.details ?? json.missing?.join(', ')
+            setSubmitError(detail ? `${json.error} : ${detail}` : (json.error ?? `Erreur ${res.status}`))
             return
           }
 
