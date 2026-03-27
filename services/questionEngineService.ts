@@ -121,9 +121,9 @@ export const questionEngineService = {
 
     if (!rows.length) return
 
-    const { error } = await supabase
-      .from('dynamic_answers')
-      .upsert(rows, { onConflict: 'project_id,question_key' })
+    // Delete existing answers then insert fresh (avoids needing a unique constraint)
+    await supabase.from('dynamic_answers').delete().eq('project_id', projectId)
+    const { error } = await supabase.from('dynamic_answers').insert(rows)
 
     if (error) {
       log.error('failed to save dynamic answers', {}, error as Error)

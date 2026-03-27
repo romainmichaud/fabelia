@@ -143,9 +143,12 @@ export const previewService = {
 
     const expiresAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString()
 
+    // Delete existing preview then insert fresh (avoids needing a unique constraint)
+    await supabase.from('book_previews').delete().eq('project_id', projectId)
+
     const { data: preview, error: previewError } = await supabase
       .from('book_previews')
-      .upsert({
+      .insert({
         project_id:       projectId,
         chapter_excerpt:  bestChapter.content,
         chapter_title:    bestChapter.title,
@@ -154,7 +157,7 @@ export const previewService = {
         score:            finalScore.overall,
         passed,
         is_active:        true,
-      }, { onConflict: 'project_id' })
+      })
       .select('id')
       .single()
 
