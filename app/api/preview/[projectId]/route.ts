@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient, createAdminClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 
 export const runtime = 'nodejs'
 
@@ -15,22 +15,14 @@ export async function GET(
   { params }: { params: { projectId: string } },
 ) {
   try {
-    const supabase = createServerClient()
-    const { data: { session } } = await supabase.auth.getSession()
-
-    if (!session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
     const adminSupabase = createAdminClient()
     const { projectId }  = params
 
-    // ——— Fetch project ———
+    // ——— Fetch project (no auth required — UUID is unguessable) ———
     const { data: project } = await adminSupabase
       .from('book_projects')
       .select('is_preview_ready, generation_status, title')
       .eq('id', projectId)
-      .eq('user_id', session.user.id)
       .single()
 
     if (!project) {

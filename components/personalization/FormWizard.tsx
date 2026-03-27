@@ -2,7 +2,6 @@
 
 import { useState, useCallback, useTransition } from 'react'
 import { useRouter } from 'next/navigation'
-import { createClient } from '@/lib/supabase/client'
 import { Stepper, StepCounter } from '@/components/ui/Stepper'
 import { Button } from '@/components/ui/Button'
 import { ChevronLeftIcon, ArrowRightIcon } from 'lucide-react'
@@ -115,17 +114,6 @@ export function FormWizard({
       setSubmitError(null)
       startTransition(async () => {
         try {
-          // Ensure a session exists — sign in anonymously if needed
-          const supabase = createClient()
-          const { data: { session } } = await supabase.auth.getSession()
-          if (!session) {
-            const { error: anonErr } = await supabase.auth.signInAnonymously()
-            if (anonErr) {
-              setSubmitError('Connexion impossible. Veuillez vous connecter pour continuer.')
-              return
-            }
-          }
-
           const res  = await fetch('/api/preview/generate', {
             method:  'POST',
             headers: { 'Content-Type': 'application/json' },

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createServerClient }        from '@/lib/supabase/server'
+import { createServerClient, createAdminClient } from '@/lib/supabase/server'
 import { previewService }            from '@/services/previewService'
 import { questionEngineService }     from '@/services/questionEngineService'
 import { logger }                    from '@/lib/logger'
@@ -12,15 +12,10 @@ export async function POST(req: NextRequest) {
   const log = logger.child({ route: 'POST /api/preview/generate' })
 
   try {
-    // ——— Auth ———
+    // ——— Auth (optional — guests can generate previews) ———
     const supabase = createServerClient()
-    const { data: { session }, error: authErr } = await supabase.auth.getSession()
-
-    if (authErr || !session) {
-      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
-    }
-
-    const userId = session.user.id
+    const { data: { session } } = await supabase.auth.getSession()
+    const userId = session?.user.id ?? null   // null = guest user
 
     // ——— Parse body ———
     const body = await req.json() as {
@@ -42,14 +37,15 @@ export async function POST(req: NextRequest) {
     }
 
     // ——— Get or create project ———
-    const adminSupabase = (await import('@/lib/supabase/server')).createAdminClient()
+    const adminSupabase = createAdminClient()
     let projectId = body.projectId
 
     if (!projectId) {
       const { data: project, error: createErr } = await adminSupabase
         .from('book_projects')
         .insert({
-          user_id:  userId,
+          // user_id is nullable after migration: ALTER TABLE book_projects ALTER COLUMN user_id DROP NOT NULL
+          user_id:  userId as unknown as string,
           theme:    body.formData.theme,
           language: 'fr',
         })
@@ -61,8 +57,6 @@ export async function POST(req: NextRequest) {
     }
 
     // ——— Save inputs ———
-    const questionMap = await questionEngineService.getActiveQuestions()
-
     const inputRows = Object.entries({
       childName:     body.formData.childName,
       childAge:      String(body.formData.childAge ?? ''),
@@ -76,15 +70,14 @@ export async function POST(req: NextRequest) {
       senderName:    body.formData.senderName ?? '',
     }).filter(([, v]) => v !== undefined && v !== '' && v !== 'undefined')
 
-    // Upsert dynamic answers for fast access
     await questionEngineService.saveAnswers(
       projectId,
       Object.fromEntries(inputRows) as Record<string, string>,
     )
 
-    log.info('starting preview generation', { projectId, userId })
+    log.info('starting preview generation', { projectId, userId: userId ?? 'guest' })
 
-    // ——— Generate preview (async, returns result) ———
+    // ——— Generate preview ———
     const result = await previewService.generate(projectId, body.formData)
 
     return NextResponse.json({
