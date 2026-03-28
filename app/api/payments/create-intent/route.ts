@@ -35,16 +35,25 @@ export async function POST(req: NextRequest) {
       )
     }
 
-    // Verify project ownership
+    // Verify project exists (may be a guest project with null user_id)
     const adminClient = (await import('@/lib/supabase/server')).createAdminClient()
     const { data: project } = await adminClient
       .from('book_projects')
-      .select('id, is_preview_ready')
+      .select('id, is_preview_ready, user_id')
       .eq('id', body.projectId)
-      .eq('user_id', userId)
       .single()
 
     if (!project) {
+      return NextResponse.json({ error: 'Project not found' }, { status: 404 })
+    }
+
+    // Claim guest project: associate with authenticated user
+    if (!project.user_id) {
+      await adminClient
+        .from('book_projects')
+        .update({ user_id: userId } as never)
+        .eq('id', body.projectId)
+    } else if (project.user_id !== userId) {
       return NextResponse.json({ error: 'Project not found' }, { status: 404 })
     }
 
