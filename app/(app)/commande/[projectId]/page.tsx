@@ -212,15 +212,16 @@ function AddressForm({
 // STRIPE ERROR TRANSLATION
 // ============================================================
 function translateStripeError(msg: string): string {
-  if (msg.includes('card number'))           return 'Numéro de carte invalide.'
-  if (msg.includes('expiration'))            return 'Date d\'expiration invalide.'
-  if (msg.includes('security code') || msg.includes('CVC') || msg.includes('cvc')) return 'Code de sécurité invalide.'
-  if (msg.includes('insufficient_funds') || msg.includes('insufficient funds')) return 'Fonds insuffisants.'
-  if (msg.includes('card was declined') || msg.includes('declined')) return 'Carte refusée par votre banque.'
-  if (msg.includes('expired'))               return 'Carte expirée.'
-  if (msg.includes('incorrect_number') || msg.includes('incorrect number')) return 'Numéro de carte incorrect.'
-  if (msg.includes('payment_method') || msg.includes('PaymentIntent')) return 'Erreur de paiement. Vérifiez vos informations de carte.'
-  if (msg.includes('network'))               return 'Erreur réseau. Veuillez réessayer.'
+  const m = msg.toLowerCase()
+  if (m.includes('incomplete'))                  return 'Veuillez compléter vos informations de carte.'
+  if (m.includes('invalid expiry') || m.includes('expiration')) return 'Date d\'expiration invalide.'
+  if (m.includes('invalid cvc') || m.includes('security code') || m.includes('cvc')) return 'Code de sécurité invalide.'
+  if (m.includes('card number') || m.includes('incorrect_number') || m.includes('incorrect number')) return 'Numéro de carte invalide.'
+  if (m.includes('insufficient_funds') || m.includes('insufficient funds')) return 'Fonds insuffisants.'
+  if (m.includes('card was declined') || m.includes('declined'))  return 'Carte refusée par votre banque.'
+  if (m.includes('expired'))                     return 'Carte expirée.'
+  if (m.includes('payment_method') || m.includes('paymentintent')) return 'Erreur de paiement. Vérifiez vos informations de carte.'
+  if (m.includes('network'))                     return 'Erreur réseau. Veuillez réessayer.'
   return 'Une erreur est survenue lors du paiement. Veuillez réessayer.'
 }
 
@@ -258,7 +259,7 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
           if (!stripe || !cardRef.current) return
           stripeRef.current = stripe
           type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { error?: { message: string } }) => void) => void; unmount: () => void }
-          const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements()
+          const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements({ locale: 'fr' })
           const card     = elements.create('card', {
             style: { base: { fontSize: '16px', color: '#1A2E4A', '::placeholder': { color: '#A0AEC0' } }, invalid: { color: '#E53E3E' } },
             hidePostalCode: true,
