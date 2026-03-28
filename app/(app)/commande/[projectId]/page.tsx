@@ -242,7 +242,7 @@ function StripePaymentForm({ clientSecret, onReady }: { clientSecret: string | n
     <div className="space-y-4">
       <div>
         <label className="block text-sm font-semibold text-navy-700 mb-2">Numéro de carte</label>
-        <div ref={cardRef} className="form-input min-h-[46px] flex items-center" />
+        <div ref={cardRef} className="w-full rounded-2xl border-2 border-cream-300 bg-white px-4 py-3.5 transition-all duration-200 hover:border-cream-400" />
         {cardError && <p className="mt-1 text-terra-500 text-xs flex items-center gap-1"><AlertCircleIcon className="h-3 w-3" />{cardError}</p>}
         <p className="text-xs text-navy-400 mt-1">Paiement sécurisé par Stripe — vos données ne sont jamais stockées</p>
       </div>
