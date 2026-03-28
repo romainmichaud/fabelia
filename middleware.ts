@@ -4,7 +4,7 @@ import { createServerClient }            from '@supabase/ssr'
 const PROTECTED_PATHS = [
   '/ma-bibliotheque',
   '/lecture',
-  '/commande',
+  // /commande is intentionally not protected — auth is enforced at payment API level
 ]
 
 export async function middleware(request: NextRequest) {
