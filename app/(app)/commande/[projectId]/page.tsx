@@ -36,25 +36,34 @@ function AuthStep({ onSuccess }: { onSuccess: () => void }) {
     setError(null)
 
     if (mode === 'signup') {
-      const { error: err } = await supabase.auth.signUp({ email, password })
-      if (err) {
-        // Email already registered → switch to sign-in
-        if (err.message.includes('already registered') || err.message.includes('already exists')) {
+      // Use server-side signup to bypass trigger issues
+      const res  = await fetch('/api/auth/signup', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ email, password }),
+      })
+      const json = await res.json()
+
+      if (!res.ok) {
+        if (res.status === 409) {
+          // Already exists → sign in instead
           setMode('signin')
           setError('Ce compte existe déjà — connectez-vous ci-dessous')
-        } else {
-          setError(err.message)
+          setLoading(false)
+          return
         }
+        setError(json.error ?? 'Erreur lors de la création du compte')
         setLoading(false)
         return
       }
-    } else {
-      const { error: err } = await supabase.auth.signInWithPassword({ email, password })
-      if (err) {
-        setError('Email ou mot de passe incorrect')
-        setLoading(false)
-        return
-      }
+    }
+
+    // Sign in (either after signup or direct login)
+    const { error: err } = await supabase.auth.signInWithPassword({ email, password })
+    if (err) {
+      setError('Email ou mot de passe incorrect')
+      setLoading(false)
+      return
     }
 
     onSuccess()
