@@ -267,10 +267,10 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
           card.mount(cardRef.current)
           elementRef.current = card
           card.on('change', e => {
-            const err = e.error ? translateStripeError(e.error.message) : null
+            // Only show error once all fields are filled (not while typing)
+            const err = (e.complete && e.error) ? translateStripeError(e.error.message) : null
             setCardError(err)
-            onError(err)
-            onReady(!e.error)
+            onReady(e.complete && !e.error)
           })
         })
       })
