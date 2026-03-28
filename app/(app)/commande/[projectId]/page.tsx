@@ -494,7 +494,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               ) : (
-                <StripePaymentForm ref={stripeFormRef} clientSecret={clientSecret} onReady={setCardReady} onError={setSubmitError} />
+                <StripePaymentForm ref={stripeFormRef} clientSecret={clientSecret} onReady={setCardReady} onError={() => {}} />
               )}
             </div>
           )}
