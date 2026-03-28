@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, forwardRef, useImperativeHandle } from 'react'
 import { useParams, useRouter } from 'next/navigation'
 import { createClient } from '@/lib/supabase/client'
 import { Button } from '@/components/ui/Button'
@@ -209,46 +209,86 @@ function AddressForm({
 }
 
 // ============================================================
+// STRIPE ERROR TRANSLATION
+// ============================================================
+function translateStripeError(msg: string): string {
+  if (msg.includes('card number'))           return 'Numéro de carte invalide.'
+  if (msg.includes('expiration'))            return 'Date d\'expiration invalide.'
+  if (msg.includes('security code') || msg.includes('CVC') || msg.includes('cvc')) return 'Code de sécurité invalide.'
+  if (msg.includes('insufficient_funds') || msg.includes('insufficient funds')) return 'Fonds insuffisants.'
+  if (msg.includes('card was declined') || msg.includes('declined')) return 'Carte refusée par votre banque.'
+  if (msg.includes('expired'))               return 'Carte expirée.'
+  if (msg.includes('incorrect_number') || msg.includes('incorrect number')) return 'Numéro de carte incorrect.'
+  if (msg.includes('payment_method') || msg.includes('PaymentIntent')) return 'Erreur de paiement. Vérifiez vos informations de carte.'
+  if (msg.includes('network'))               return 'Erreur réseau. Veuillez réessayer.'
+  return 'Une erreur est survenue lors du paiement. Veuillez réessayer.'
+}
+
+// ============================================================
 // STRIPE PAYMENT FORM
 // ============================================================
-function StripePaymentForm({ clientSecret, onReady }: { clientSecret: string | null; onReady: (r: boolean) => void }) {
-  const cardRef    = useRef<HTMLDivElement>(null)
-  const stripeRef  = useRef<unknown>(null)
-  const elementRef = useRef<unknown>(null)
-  const [cardError, setCardError] = useState<string | null>(null)
-
-  useEffect(() => {
-    if (!clientSecret || !cardRef.current) return
-    const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
-    if (!key) { setCardError('Stripe non configuré'); return }
-
-    import('@stripe/stripe-js').then(({ loadStripe }) => {
-      loadStripe(key).then(stripe => {
-        if (!stripe || !cardRef.current) return
-        stripeRef.current = stripe
-        type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { error?: { message: string } }) => void) => void; unmount: () => void }
-        const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements()
-        const card     = elements.create('card', { style: { base: { fontSize: '16px', color: '#1A2E4A', '::placeholder': { color: '#A0AEC0' } }, invalid: { color: '#E53E3E' } }, hidePostalCode: true }) as unknown as CardEl
-        card.mount(cardRef.current)
-        elementRef.current = card
-        card.on('change', e => { setCardError(e.error?.message ?? null); onReady(!e.error) })
-      })
-    })
-    return () => { if (elementRef.current) (elementRef.current as { unmount: () => void }).unmount() }
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [clientSecret])
-
-  return (
-    <div className="space-y-4">
-      <div>
-        <label className="block text-sm font-semibold text-navy-700 mb-2">Numéro de carte</label>
-        <div ref={cardRef} className="w-full rounded-2xl border-2 border-cream-300 bg-white px-4 py-3.5 transition-all duration-200 hover:border-cream-400" />
-        {cardError && <p className="mt-1 text-terra-500 text-xs flex items-center gap-1"><AlertCircleIcon className="h-3 w-3" />{cardError}</p>}
-        <p className="text-xs text-navy-400 mt-1">Paiement sécurisé par Stripe — vos données ne sont jamais stockées</p>
-      </div>
-    </div>
-  )
+export interface StripeFormHandle {
+  confirm: (clientSecret: string) => Promise<void>
 }
+
+const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | null; onReady: (r: boolean) => void; onError: (msg: string | null) => void }>(
+  function StripePaymentForm({ clientSecret, onReady, onError }, ref) {
+    const cardRef    = useRef<HTMLDivElement>(null)
+    const stripeRef  = useRef<unknown>(null)
+    const elementRef = useRef<unknown>(null)
+    const [cardError, setCardError] = useState<string | null>(null)
+
+    useImperativeHandle(ref, () => ({
+      async confirm(secret: string) {
+        const stripe  = stripeRef.current as { confirmCardPayment: (s: string, d: unknown) => Promise<{ error?: { message: string } }> } | null
+        const card    = elementRef.current
+        if (!stripe || !card) throw new Error('Stripe non initialisé')
+        const result  = await stripe.confirmCardPayment(secret, { payment_method: { card } })
+        if (result.error) throw new Error(translateStripeError(result.error.message))
+      },
+    }))
+
+    useEffect(() => {
+      if (!clientSecret || !cardRef.current) return
+      const key = process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY
+      if (!key) { setCardError('Stripe non configuré'); return }
+
+      import('@stripe/stripe-js').then(({ loadStripe }) => {
+        loadStripe(key).then(stripe => {
+          if (!stripe || !cardRef.current) return
+          stripeRef.current = stripe
+          type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { error?: { message: string } }) => void) => void; unmount: () => void }
+          const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements()
+          const card     = elements.create('card', {
+            style: { base: { fontSize: '16px', color: '#1A2E4A', '::placeholder': { color: '#A0AEC0' } }, invalid: { color: '#E53E3E' } },
+            hidePostalCode: true,
+          }) as unknown as CardEl
+          card.mount(cardRef.current)
+          elementRef.current = card
+          card.on('change', e => {
+            const err = e.error ? translateStripeError(e.error.message) : null
+            setCardError(err)
+            onError(err)
+            onReady(!e.error)
+          })
+        })
+      })
+      return () => { if (elementRef.current) (elementRef.current as { unmount: () => void }).unmount() }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [clientSecret])
+
+    return (
+      <div className="space-y-4">
+        <div>
+          <label className="block text-sm font-semibold text-navy-700 mb-2">Numéro de carte</label>
+          <div ref={cardRef} className="w-full rounded-2xl border-2 border-cream-300 bg-white px-4 py-3.5 transition-all duration-200 hover:border-cream-400" />
+          {cardError && <p className="mt-1 text-terra-500 text-xs flex items-center gap-1"><AlertCircleIcon className="h-3 w-3" />{cardError}</p>}
+          <p className="text-xs text-navy-400 mt-1">Paiement sécurisé par Stripe — vos données ne sont jamais stockées</p>
+        </div>
+      </div>
+    )
+  }
+)
 
 // ============================================================
 // TRUST BADGES
@@ -288,6 +328,7 @@ export default function CheckoutPage() {
   const [clientSecret,  setClientSecret]  = useState<string | null>(null)
   const [orderId,       setOrderId]       = useState<string | null>(null)
   const [cardReady,     setCardReady]     = useState(false)
+  const stripeFormRef = useRef<StripeFormHandle>(null)
 
   // Check session on mount — skip auth step if already logged in
   useEffect(() => {
@@ -348,11 +389,8 @@ export default function CheckoutPage() {
     setIsSubmitting(true)
     setSubmitError(null)
     try {
-      const { loadStripe } = await import('@stripe/stripe-js')
-      const stripe = await loadStripe(process.env.NEXT_PUBLIC_STRIPE_PUBLISHABLE_KEY!)
-      if (!stripe) throw new Error('Stripe non disponible')
-      const result = await (stripe as { confirmCardPayment: (s: string) => Promise<{ error?: { message: string } }> }).confirmCardPayment(clientSecret)
-      if (result.error) throw new Error(result.error.message)
+      if (!stripeFormRef.current) throw new Error('Formulaire de paiement non initialisé')
+      await stripeFormRef.current.confirm(clientSecret)
       router.push(`/commande/${projectId}/confirmation`)
     } catch (e) {
       setSubmitError((e as Error).message)
@@ -456,7 +494,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               ) : (
-                <StripePaymentForm clientSecret={clientSecret} onReady={setCardReady} />
+                <StripePaymentForm ref={stripeFormRef} clientSecret={clientSecret} onReady={setCardReady} onError={setSubmitError} />
               )}
             </div>
           )}
