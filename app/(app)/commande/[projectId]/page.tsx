@@ -77,13 +77,14 @@ function AuthStep({ onSuccess }: { onSuccess: () => void }) {
             Adresse email
           </label>
           <div className="relative">
-            <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
+            <MailIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300 pointer-events-none" />
             <input
               type="email"
               value={email}
               onChange={e => setEmail(e.target.value)}
               placeholder="vous@exemple.fr"
-              className="form-input pl-11"
+              className="form-input"
+              style={{ paddingLeft: '2.75rem' }}
               autoComplete="email"
             />
           </div>
@@ -94,13 +95,14 @@ function AuthStep({ onSuccess }: { onSuccess: () => void }) {
             Mot de passe {mode === 'signup' && <span className="font-normal text-navy-400">(min. 8 caractères)</span>}
           </label>
           <div className="relative">
-            <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300" />
+            <LockIcon className="absolute left-4 top-1/2 -translate-y-1/2 h-4 w-4 text-navy-300 pointer-events-none" />
             <input
               type={showPass ? 'text' : 'password'}
               value={password}
               onChange={e => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="form-input pl-11 pr-11"
+              className="form-input"
+              style={{ paddingLeft: '2.75rem', paddingRight: '2.75rem' }}
               autoComplete={mode === 'signup' ? 'new-password' : 'current-password'}
               onKeyDown={e => e.key === 'Enter' && submit()}
             />
