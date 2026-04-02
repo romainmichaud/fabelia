@@ -232,8 +232,8 @@ export interface StripeFormHandle {
   confirm: (clientSecret: string) => Promise<void>
 }
 
-const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | null; onReady: (r: boolean) => void; onError: (msg: string | null) => void }>(
-  function StripePaymentForm({ clientSecret, onReady, onError }, ref) {
+const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | null; onReady: (r: boolean) => void; onError: (msg: string | null) => void; onClear: () => void }>(
+  function StripePaymentForm({ clientSecret, onReady, onError, onClear }, ref) {
     const cardRef    = useRef<HTMLDivElement>(null)
     const stripeRef  = useRef<unknown>(null)
     const elementRef = useRef<unknown>(null)
@@ -267,6 +267,7 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
           card.mount(cardRef.current)
           elementRef.current = card
           card.on('change', e => {
+            onClear() // clear any previous submit error
             // Only show error once all fields are filled (not while typing)
             const err = (e.complete && e.error) ? translateStripeError(e.error.message) : null
             setCardError(err)
@@ -495,7 +496,7 @@ export default function CheckoutPage() {
                   </div>
                 </div>
               ) : (
-                <StripePaymentForm ref={stripeFormRef} clientSecret={clientSecret} onReady={setCardReady} onError={() => {}} />
+                <StripePaymentForm ref={stripeFormRef} clientSecret={clientSecret} onReady={setCardReady} onError={() => {}} onClear={() => setSubmitError(null)} />
               )}
             </div>
           )}
