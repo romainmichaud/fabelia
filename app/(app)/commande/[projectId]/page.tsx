@@ -258,7 +258,7 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
         loadStripe(key).then(stripe => {
           if (!stripe || !cardRef.current) return
           stripeRef.current = stripe
-          type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { error?: { message: string } }) => void) => void; unmount: () => void }
+          type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { complete: boolean; error?: { message: string } }) => void) => void; unmount: () => void }
           const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements({ locale: 'fr' })
           const card     = elements.create('card', {
             style: { base: { fontSize: '16px', color: '#1A2E4A', '::placeholder': { color: '#A0AEC0' } }, invalid: { color: '#E53E3E' } },
