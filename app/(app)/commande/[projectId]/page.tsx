@@ -245,7 +245,10 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
         const card    = elementRef.current
         if (!stripe || !card) throw new Error('Stripe non initialisé')
         const result  = await stripe.confirmCardPayment(secret, { payment_method: { card } })
-        if (result.error) throw new Error(translateStripeError(result.error.message))
+        if (result.error) {
+          console.error('[Stripe] confirmCardPayment error:', result.error.message)
+          throw new Error(translateStripeError(result.error.message))
+        }
       },
     }))
 
@@ -259,7 +262,7 @@ const StripePaymentForm = forwardRef<StripeFormHandle, { clientSecret: string | 
           if (!stripe || !cardRef.current) return
           stripeRef.current = stripe
           type CardEl = { mount: (el: HTMLDivElement) => void; on: (ev: string, fn: (e: { complete: boolean; error?: { message: string } }) => void) => void; unmount: () => void }
-          const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements({ locale: 'fr' })
+          const elements = (stripe as { elements: (o?: unknown) => { create: (t: string, o?: unknown) => unknown } }).elements()
           const card     = elements.create('card', {
             style: { base: { fontSize: '16px', color: '#1A2E4A', '::placeholder': { color: '#A0AEC0' } }, invalid: { color: '#E53E3E' } },
             hidePostalCode: true,
