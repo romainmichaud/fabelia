@@ -63,7 +63,7 @@ type Book = {
 
 function BookCard({ book }: { book: Book }) {
   const theme       = THEME_CONFIG[book.theme ?? ''] ?? THEME_CONFIG.default
-  const isReady     = book.generation_status === 'completed' && book.is_book_ready
+  const isReady     = book.generation_status === 'completed'
   const isGenerating = ['generating_text', 'generating_images', 'assembling', 'queued'].includes(book.generation_status)
   const isDraft     = !book.productType
 
